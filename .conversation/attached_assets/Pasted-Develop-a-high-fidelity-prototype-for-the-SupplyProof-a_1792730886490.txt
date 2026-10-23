@@ -1,0 +1,33 @@
+Develop a high-fidelity prototype for the SupplyProof app, ensuring a consistent and aesthetically pleasing design. Replace the temporary logo with the official one and use Tambay Spot images as a visual reference. 
+
+Create a Login/Sign In page featuring a clean, modern design, with a consistent aesthetic. For the Sign Up page, include fields relevant to the app's purpose, such as business name, contact information, and industry type.
+
+Project Overview:
+- **SupplyProof**: A B2B delivery-verification tool for restaurant groups and retail businesses.
+- **Core Problem**: Managing discrepancies in deliveries, such as missing or damaged items, and billing mismatches.
+- **Solution**: A focused tool for documenting delivery issues, organizing evidence, and tracking resolutions.
+
+Target Audience:
+- Small to medium-sized businesses with regular supplier deliveries, specifically restaurant groups and regional retail chains.
+
+Core Workflow:
+1. **Verify Delivery**: Record ordered vs. received quantities.
+2. **Document Discrepancies**: Flag issues with photos/notes.
+3. **Check Evidence**: Ensure all information is ready before supplier contact.
+4. **Track Resolution**: Log supplier responses and case status.
+5. **Monitor Cases**: Provide management visibility into unresolved issues.
+
+Proposed MVP Features:
+- Delivery discrepancy entry form.
+- Quantity comparison (expected vs. received).
+- Evidence attachments and checklist.
+- Discrepancy status and resolution tracking.
+- Dashboard for open cases, disputed amounts, and recoveries.
+
+Current Features:
+- **Dashboard**: Displays open cases, disputed values, and recent discrepancies.
+- **New Discrepancy**: Includes supplier, branch, PO reference, expected vs. received quantities, issue type, and notes/photos.
+- **Case Details**: Features evidence checklist, current status, timeline, and resolution tracking.
+- **Supplier Message**: Provides a copyable generated message with a return-to-case option.
+
+This prototype will utilize manual entry and sample data, excluding complex integrations and automated communications.

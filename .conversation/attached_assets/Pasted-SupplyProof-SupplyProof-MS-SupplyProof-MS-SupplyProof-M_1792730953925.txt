@@ -1,0 +1,261 @@
+SupplyProof
+SupplyProof
+MS
+SupplyProof
+MS
+SupplyProof
+MS
+SupplyProof
+MS
+SupplyProof
+MS
+Kape Norte Café
+Kape Norte Café
+Kape Norte Café
+Kape Norte Café
+Kape Norte Café
+Kape Norte Café
+Welcome back
+Overview
+New discrepancy
+CASE SP-1048
+CASE SP-1048
+Settings
+Document delivery issues. Recover what’s owed.
+23 Oct 2026 · Kape Norte Café
+New Discrepancy
+Record a delivery issue and prepare evidence for the supplier.
+Short delivery · Northline Food Supplies
+Open
+Supplier message
+A clear summary of the delivery issue, ready to share with your supplier.
+Workspace & contact
+Email
+Full cream milk · 6 × 1L case · Manila Branch
+Sample workspace · 3 branches · Philippines
+mika@kapenorte.example
+Open cases
+Disputed value
+Supplier
+Northline Food Supplies
+Mika Santos · Operations manager
+18
+₱78,750.00
+Attach Photo Evidence
+Required
+Message preview
+Not sent
+Across all branches
+Across 18 open cases
+Required: signed delivery receipt and a clear photo of the received boxes.
+Branch
+Manila Branch
+Password
+PO reference
+KN-10482
+Supplier
+Northline Food Supplies
+Business details
+••••••••••••
+Attach files
+Delivery date
+23 Oct 2026
+Case
+Delivery shortfall — PO KN-10482 — Case SP-1048
+Business name
+Awaiting supplier response
+Recorded recoveries
++ Upload Delivery Receipt
+Estimated amount affected
+Kape Norte Café
+Sign In
+7
+₱18,750.00
+Photo of delivered boxes
+₱6,000.00
+Good day, Northline team,
+Included in open cases
+This month · PHP
+8 missing cases × ₱750.00 · Excluding VAT · Not yet recovered
+Default branch
+Need access? Ask your operations team for a workspace invite.
++ Add Photo of Delivered Boxes
+We would like to formally raise a delivery discrepancy under PO KN-10482, received on 23 Oct 2026 at our Manila Branch.
+Manila Branch
+Recent discrepancies
+View all discrepancies
+delivery-receipt.pdf
+248 KB
+Quantity comparison
+Contact email
+SP-1048
+Open
+Full cream milk · 6 × 1L case
+mika@kapenorte.example
+Northline Food Supplies
+receiving-count.jpg
+1.8 MB
+Ordered
+50 cases
+Full cream milk · 6 × 1L
+Received
+42 cases
+Ordered: 50 cases
+Received: 42 cases
+Shortfall: 8 cases
+Preferred currency
+Manila Branch · 23 Oct 2026
+Shortfall
+8 cases
+Short delivery
+Estimate
+8 cases × ₱750.00 = ₱6,000.00 PHP, excluding VAT
+PHP — Philippine peso (₱)
+Est. value
+₱6,000.00
+Unit cost
+₱750.00
+Discrepancy value
+₱6,000.00
+Generate Supplier Message
+Copy Message
+Defaults explanation
+SP-1047
+Awaiting response
+(50−42) × ₱750.00 excluding VAT · Not yet recovered
+Cancel
+Create Case
+Receiving notes
+Update Status
+Our receiving staff verified the count against the PO and signed delivery receipt. Supporting documents — delivery-receipt.pdf and receiving-count.jpg — are available for your review.
+Back to Case
+These defaults prefill new cases. Existing records keep their original branch, currency, and contact details.
+Save Changes
+FreshRoute Distributors
+8 cases missing. Receiving staff checked the count against the PO and signed delivery receipt at the branch.
+Fresh tomato crates
+Delivery Information
+Quezon City Branch · 22 Oct 2026
+Overview
+Discrepancies
+Settings
+Overview
+Discrepancies
+Settings
+Overview
+Discrepancies
+Settings
+Overview
+Discrepancies
+Settings
+Overview
+Discrepancies
+Settings
+Damaged goods
+Supplier
+Kindly confirm a supplier credit of ₱6,000.00 excluding VAT, or advise when a replacement delivery can be arranged at your earliest convenience. Please quote SP-1048 in your reply.
+Notifications
+Est. value
+₱1,250.00
+Northline Food Supplies
+Evidence checklist
+New discrepancies
+Branch
+Supporting records for the supplier conversation.
+Notify when a new case is created.
+SP-1046
+Open
+Luntian Dairy Supply
+Manila Branch
+Signed delivery receipt
+View
+Thank you,
+Case status changes
+Full cream milk · 6 × 1L
+delivery-receipt.pdf · 248 KB
+Mika Santos
+Notify when a case moves to another status.
+Manila Branch · 22 Oct 2026
+Purchase order reference
+Receiving count photo
+View
+Operations Manager · Kape Norte Café
+Wrong item
+KN-10482
+receiving-count.jpg · 1.8 MB
+mika@kapenorte.example
+Est. value
+₱2,400.00
+Recorded recoveries
+Delivery date
+Purchase order and quantities verified by Mika Santos.
+Notify when a recovery is recorded.
+SP-1045
+Case summary
+Northline Food Supplies
+Awaiting response
+23 Oct 2026
+SP-1048
+Open
+Paper cups · 1,000 pcs
+Resolution
+Supplier
+Northline Food Supplies
+Cebu Branch · 21 Oct 2026
+Item Details
+Proposed resolution
+Supplier credit
+Purchase order
+KN-10482
+Short delivery
+Recorded recovery
+₱0.00
+Branch
+Manila Branch
+Est. value
+₱1,800.00
+Item
+Full cream milk · 6 × 1L case
+No supplier agreement or resolution recorded.
+Estimated value affected
+SP-1044
+₱6,000.00
+Umaga Bread Supply
+Open
+Issue type
+Timeline
+PHP · Excluding VAT
+Pandesal · 100-piece tray
+Short delivery
+Case created
+Quezon City Branch · 21 Oct 2026
+23 Oct 2026 · 09:12 · Mika Santos
+Before you share
+Quality issue
+Quantity ordered
+Review the quantities and requested credit before copying.
+Est. value
+₱900.00
+50 cases
+2 evidence files attached
+23 Oct 2026 · 09:14 · Mika Santos
+Quantity received
+Receiving count verified
+Copy the message text and paste it into Messenger, Viber, or email.
+SP-1043
+Resolved
+23 Oct 2026 · 09:18 · Mika Santos
+FreshRoute Distributors
+42 cases
+Attach delivery-receipt.pdf and receiving-count.jpg separately before sending.
+Local banana crates
+Unit cost
+Cebu Branch · 20 Oct 2026
+SupplyProof prepares this message — it does not send it. Copying does not close the case or record a recovery.
+Damaged goods
+₱750.00 per case excluding VAT
+Est. value
+₱1,250.00
+Notes
+Start with New Discrepancy to record a delivery issue, attach evidence, and prepare a supplier message.
+8 cases missing. Receiving staff checked the count against the PO and signed delivery receipt at the branch.

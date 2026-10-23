@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Supply Proof"
+description = "A delivery-verification workspace for restaurant groups and regional retailers to record shortages or damage, attach evidence, prepare supplier messages, and track case resolutions."
+version = "1.0.0"
+id = "artifacts/supply-proof"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21885
+
+[services.development]
+run = "pnpm --filter @workspace/supply-proof run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/supply-proof", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/supply-proof/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21885"
+BASE_PATH = "/"
