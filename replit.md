@@ -1,44 +1,53 @@
-# [Project name]
+# Supply Proof
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A delivery-verification workspace for recording supplier discrepancies, preparing follow-ups, and tracking recoveries.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- Install dependencies with `pnpm install --frozen-lockfile`.
+- Start the managed workflow `artifacts/supply-proof: web` for the frontend at `/`.
+- Start the managed workflow `artifacts/api-server: API Server` for the API at `/api`.
+- Workflows provide the required `PORT` and frontend `BASE_PATH`; do not run a root-level `pnpm dev`.
+- The API health endpoint is `/api/healthz`.
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- No secrets or database connection are required for the current app. Cases and settings use browser localStorage with initial demo records.
+- `DATABASE_URL` is required only when using the database package or its schema commands; the current API exposes only a health check and does not import that package.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
+- pnpm workspaces, Node.js 20.20, TypeScript 5.9
+- Frontend: React 19, Vite 7, Tailwind CSS, Wouter
 - API: Express 5
-- DB: PostgreSQL + Drizzle ORM
+- DB support: PostgreSQL + Drizzle ORM (not connected to the current UI)
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/supply-proof/` — frontend; `src/App.tsx` contains the routes and browser-local state, and `src/index.css` contains the styling.
+- `artifacts/api-server/` — Express API and health route.
+- `lib/api-spec/openapi.yaml` — API contract; `lib/api-client-react/` and `lib/api-zod/` contain generated helpers.
+- `lib/db/` — database support for future server persistence.
+- `artifacts/mockup-sandbox/` — optional component preview sandbox; not required to run Supply Proof.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Preserve the imported stack and workspace layout. Import setup does not add server persistence or migrate storage.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Dashboard, discrepancy list, case creation and detail pages, supplier follow-up preparation, recovery tracking, and workspace settings.
+- Current records are local to one browser. This is not yet a shared, authenticated workspace.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Clearing browser storage removes locally saved records and settings. Other browsers and devices do not share those changes.
+- Test service URLs through the shared proxy (for example, `http://localhost:80/api/healthz`), not directly through service ports.
+- The frontend workflow supplies `PORT` and `BASE_PATH`, including for build configuration.
 
 ## Pointers
 
