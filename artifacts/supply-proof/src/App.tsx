@@ -1,10 +1,12 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
-import { Link, Route, Switch, useLocation, useParams } from 'wouter';
+import { ClerkProvider, Show, SignIn, SignUp, useClerk, useUser } from '@clerk/react';
+import { publishableKeyFromHost } from '@clerk/react/internal';
+import { shadcn } from '@clerk/themes';
+import { Link, Redirect, Route, Router as WouterRouter, Switch, useLocation, useParams } from 'wouter';
 import {
-  AlertCircle, ArrowLeft, ArrowRight, BadgeCheck, BriefcaseBusiness, Check,
-  ClipboardList, Copy, FileCheck2, FileText, ImagePlus, LayoutDashboard, ListFilter,
-  MessageSquareText, PackageCheck, Plus, Search, Settings as SettingsIcon, ShieldCheck,
-  Upload, X,
+  AlertCircle, ArrowLeft, ArrowRight, BadgeCheck, BriefcaseBusiness, Check, ClipboardList,
+  Copy, FileCheck2, FileText, ImagePlus, LayoutDashboard, ListFilter, LogOut, MessageSquareText,
+  PackageCheck, Plus, Search, Settings as SettingsIcon, ShieldCheck, Upload, UserRound, X,
 } from 'lucide-react';
 
 type Status = 'Open' | 'Awaiting response' | 'Disputed' | 'Resolved';
@@ -19,61 +21,129 @@ type Settings = {
   notifications: { created: boolean; status: boolean; recovery: boolean };
 };
 
-const initialCases: CaseRecord[] = [
-  {
-    id: 'SP-1048', supplier: 'Northline Food Supplies', branch: 'Manila Branch', po: 'KN-10482',
-    date: '23 Oct 2026', item: 'Full cream milk', unit: '6 × 1L case', ordered: 50, received: 42,
-    issue: 'Short delivery', unitCost: 750,
-    notes: 'Our receiving staff verified the count against the PO and signed delivery receipt. Supporting documents are available for your review.',
-    status: 'Open', files: [
-      { name: 'delivery-receipt.pdf', size: '248 KB', kind: 'receipt' },
-      { name: 'receiving-count.jpg', size: '1.8 MB', kind: 'photo' },
-    ],
-    timeline: [
-      { title: 'Case created', date: '23 Oct 2026 · 09:12 · Mika Santos', detail: 'Purchase order and quantities verified by Mika Santos.' },
-      { title: 'Receiving count verified', date: '23 Oct 2026 · 09:14 · Mika Santos', detail: '50 ordered, 42 received. Shortfall of 8 cases.' },
-      { title: 'Evidence attached', date: '23 Oct 2026 · 09:18 · Mika Santos', detail: 'Delivery receipt and receiving count photo added.' },
-    ], recovered: 0,
-  },
-  { id: 'SP-1047', supplier: 'FreshRoute Distributors', branch: 'Quezon City Branch', po: 'KN-10479', date: '22 Oct 2026', item: 'Fresh tomato crates', unit: 'crate', ordered: 18, received: 16, issue: 'Short delivery', unitCost: 625, notes: 'Receiving staff checked the count against the PO.', status: 'Awaiting response', files: [], timeline: [{ title: 'Case created', date: '22 Oct 2026 · 14:28 · Mika Santos', detail: 'Short delivery recorded.' }], recovered: 0 },
-  { id: 'SP-1046', supplier: 'Luntian Dairy Supply', branch: 'Manila Branch', po: 'KN-10474', date: '22 Oct 2026', item: 'Full cream milk', unit: '6 × 1L case', ordered: 30, received: 27, issue: 'Damaged goods', unitCost: 800, notes: 'Three cases arrived with damaged packaging.', status: 'Open', files: [], timeline: [{ title: 'Case created', date: '22 Oct 2026 · 11:06 · Mika Santos', detail: 'Damaged goods recorded.' }], recovered: 0 },
-  { id: 'SP-1045', supplier: 'Northline Food Supplies', branch: 'Cebu Branch', po: 'KN-10468', date: '21 Oct 2026', item: 'Paper cups', unit: '1,000 pcs', ordered: 10, received: 9, issue: 'Wrong item', unitCost: 1800, notes: 'One carton contained the wrong size.', status: 'Awaiting response', files: [], timeline: [{ title: 'Case created', date: '21 Oct 2026 · 16:42 · Mika Santos', detail: 'Wrong item recorded.' }], recovered: 0 },
-  { id: 'SP-1044', supplier: 'Umaga Bread Supply', branch: 'Quezon City Branch', po: 'KN-10463', date: '21 Oct 2026', item: 'Pandesal', unit: '100-piece tray', ordered: 24, received: 22, issue: 'Quality issue', unitCost: 450, notes: 'Two trays did not meet the expected quality.', status: 'Open', files: [], timeline: [{ title: 'Case created', date: '21 Oct 2026 · 08:40 · Mika Santos', detail: 'Quality concern documented.' }], recovered: 0 },
-  { id: 'SP-1043', supplier: 'FreshRoute Distributors', branch: 'Cebu Branch', po: 'KN-10458', date: '20 Oct 2026', item: 'Local banana crates', unit: 'crate', ordered: 14, received: 13, issue: 'Damaged goods', unitCost: 1250, notes: 'One crate was damaged on arrival.', status: 'Resolved', files: [], timeline: [{ title: 'Case resolved', date: '21 Oct 2026 · 10:06 · Mika Santos', detail: 'Supplier credit recorded.' }], recovered: 1250 },
-];
-const initialSettings: Settings = {
-  businessName: 'Kape Norte Café', branch: 'Manila Branch', email: 'mika@kapenorte.example',
-  currency: 'PHP', notifications: { created: true, status: true, recovery: false },
-};
-const caseStorage = 'supplyproof-cases-v1';
-const settingsStorage = 'supplyproof-settings-v1';
-const getCases = (): CaseRecord[] => {
-  try { const raw = localStorage.getItem(caseStorage); return raw ? JSON.parse(raw) as CaseRecord[] : initialCases; }
-  catch { return initialCases; }
-};
-const getSettings = (): Settings => {
-  try { const raw = localStorage.getItem(settingsStorage); return raw ? JSON.parse(raw) as Settings : initialSettings; }
-  catch { return initialSettings; }
-};
+const defaultSettings = (): Settings => ({
+  businessName: '', branch: '', email: '', currency: 'PHP',
+  notifications: { created: true, status: true, recovery: false },
+});
 const money = (amount: number, currency = 'PHP') => new Intl.NumberFormat('en-PH', { style: 'currency', currency, minimumFractionDigits: 2 }).format(amount);
 const shortDate = () => new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date());
 
+const clerkPubKey = publishableKeyFromHost(
+  window.location.hostname,
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+);
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+function stripBase(path: string) {
+  return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || '/' : path;
+}
+const clerkAppearance = {
+  theme: shadcn,
+  cssLayerName: 'clerk',
+  options: {
+    logoPlacement: 'inside' as const,
+    logoLinkUrl: basePath || '/',
+    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+  },
+  variables: {
+    colorPrimary: '#087e83', colorForeground: '#203443', colorMutedForeground: '#65797a',
+    colorDanger: '#a83f38', colorBackground: '#fffdf7', colorInput: '#ffffff',
+    colorInputForeground: '#203443', colorNeutral: '#c8dcd7', fontFamily: 'DM Sans, sans-serif',
+    borderRadius: '0.75rem',
+  },
+  elements: {
+    rootBox: 'w-full flex justify-center',
+    cardBox: 'bg-[#fffdf7] rounded-2xl w-[440px] max-w-full overflow-hidden border border-[#d6e3dd]',
+    card: '!shadow-none !border-0 !bg-transparent !rounded-none',
+    footer: '!shadow-none !border-0 !bg-transparent !rounded-none',
+    headerTitle: 'text-[#203443] font-bold', headerSubtitle: 'text-[#65797a]',
+    socialButtonsBlockButtonText: 'text-[#30474e] font-semibold', formFieldLabel: 'text-[#314950] font-semibold',
+    footerActionLink: 'text-[#087e83] font-semibold', footerActionText: 'text-[#65797a]',
+    dividerText: 'text-[#65797a]', identityPreviewEditButton: 'text-[#087e83]',
+    formFieldSuccessText: 'text-[#287a56]', alertText: 'text-[#a83f38]', logoBox: 'mb-2',
+    logoImage: 'rounded-lg', socialButtonsBlockButton: 'border-[#c8dcd7] bg-white',
+    formButtonPrimary: 'bg-[#087e83] hover:bg-[#066f74] text-white',
+    formFieldInput: 'border-[#b9d2ca] text-[#203443] bg-white', footerAction: 'text-[#65797a]',
+    dividerLine: 'bg-[#d6e3dd]', alert: 'border-[#efd0cb] bg-[#fff4f2]',
+    otpCodeFieldInput: 'border-[#b9d2ca]', formFieldRow: 'text-[#314950]', main: 'text-[#203443]',
+  },
+};
+
 function App() {
-  const [cases, setCases] = useState<CaseRecord[]>(getCases);
-  const [settings, setSettings] = useState<Settings>(getSettings);
-  const [flash, setFlash] = useState('');
+  if (!clerkPubKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
+  return <WouterRouter base={basePath}><ClerkProviderWithRoutes /></WouterRouter>;
+}
+
+function ClerkProviderWithRoutes() {
+  const [, setLocation] = useLocation();
+  return <ClerkProvider
+      publishableKey={clerkPubKey}
+      proxyUrl={clerkProxyUrl}
+      appearance={clerkAppearance}
+      signInUrl={`${basePath}/sign-in`}
+      signUpUrl={`${basePath}/sign-up`}
+      localization={{
+        signIn: { start: { title: 'Welcome back', subtitle: 'Sign in to access your receiving records.' } },
+        signUp: { start: { title: 'Create your account', subtitle: 'Start with a clear record of every delivery.' } },
+      }}
+      routerPush={(to) => setLocation(stripBase(to))}
+      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+    >
+      <RouteSwitch />
+    </ClerkProvider>;
+}
+
+function RouteSwitch() {
+  return <Switch>
+    <Route path="/"><Show when="signed-in"><Redirect to="/overview" /></Show><Show when="signed-out"><PublicHome /></Show></Route>
+    <Route path="/sign-in/*?"><AuthPage signup={false} /></Route>
+    <Route path="/sign-up/*?"><AuthPage signup /></Route>
+    <Route><PrivateApplication /></Route>
+  </Switch>;
+}
+
+function PrivateApplication() {
+  const { user, isLoaded } = useUser();
   const [location, setLocation] = useLocation();
-  useEffect(() => localStorage.setItem(caseStorage, JSON.stringify(cases)), [cases]);
-  useEffect(() => localStorage.setItem(settingsStorage, JSON.stringify(settings)), [settings]);
+  const userId = user?.id ?? '';
+  const casesKey = userId ? `supplyproof:${userId}:cases-v2` : '';
+  const settingsKey = userId ? `supplyproof:${userId}:settings-v2` : '';
+  const [cases, setCases] = useState<CaseRecord[]>([]);
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [loadedFor, setLoadedFor] = useState('');
+  const [flash, setFlash] = useState('');
+  useEffect(() => {
+    if (!user || !casesKey || !settingsKey) return;
+    try {
+      const savedCases = localStorage.getItem(casesKey);
+      const savedSettings = localStorage.getItem(settingsKey);
+      setCases(savedCases ? JSON.parse(savedCases) as CaseRecord[] : []);
+      setSettings(savedSettings ? { ...defaultSettings(), ...JSON.parse(savedSettings) as Settings, email: user.primaryEmailAddress?.emailAddress ?? '' } : { ...defaultSettings(), email: user.primaryEmailAddress?.emailAddress ?? '', businessName: String(user.unsafeMetadata.businessName ?? '') });
+    } catch {
+      setCases([]);
+      setSettings({ ...defaultSettings(), email: user.primaryEmailAddress?.emailAddress ?? '' });
+    }
+    setLoadedFor(user.id);
+  }, [user, casesKey, settingsKey]);
+  useEffect(() => {
+    if (user && loadedFor === user.id) localStorage.setItem(casesKey, JSON.stringify(cases));
+  }, [cases, casesKey, loadedFor, user]);
+  useEffect(() => {
+    if (user && loadedFor === user.id) localStorage.setItem(settingsKey, JSON.stringify(settings));
+  }, [settings, settingsKey, loadedFor, user]);
   useEffect(() => {
     if (!flash) return;
     const timer = window.setTimeout(() => setFlash(''), 2600);
     return () => window.clearTimeout(timer);
   }, [flash]);
+  if (!isLoaded) return <div className="auth-loading" aria-label="Loading account"><div className="skeleton skeleton-brand"/><div className="skeleton skeleton-line"/><div className="skeleton skeleton-block"/></div>;
+  if (!user) return <Redirect to="/" />;
+  if (loadedFor !== user.id) return <div className="auth-loading" aria-label="Loading workspace"><div className="skeleton skeleton-brand"/><div className="skeleton skeleton-block"/></div>;
   const updateCase = (id: string, change: Partial<CaseRecord>, event?: string) => {
     setCases((current) => current.map((item) => {
       if (item.id !== id) return item;
-      const now = `${shortDate()} · ${new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' }).format(new Date())} · Mika Santos`;
+      const operator = user.fullName || user.primaryEmailAddress?.emailAddress || 'Account owner';
+      const now = `${shortDate()} · ${new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' }).format(new Date())} · ${operator}`;
       const timeline = event ? [...item.timeline, { title: event, date: now, detail: event === 'Recovery recorded' ? `Recorded recovery of ${money(change.recovered ?? 0, settings.currency)}.` : `Status updated to ${change.status ?? item.status}.` }] : item.timeline;
       return { ...item, ...change, timeline };
     }));
@@ -81,29 +151,25 @@ function App() {
   const createCase = (record: Omit<CaseRecord, 'id' | 'timeline' | 'recovered'>) => {
     const numeric = Math.max(...cases.map((item) => Number(item.id.slice(3))), 1048) + 1;
     const id = `SP-${numeric}`;
-    const item: CaseRecord = { ...record, id, recovered: 0, timeline: [{ title: 'Case created', date: `${record.date} · ${new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' }).format(new Date())} · Mika Santos`, detail: 'Discrepancy recorded and quantities verified.' }] };
+    const operator = user.fullName || user.primaryEmailAddress?.emailAddress || 'Account owner';
+    const item: CaseRecord = { ...record, id, recovered: 0, timeline: [{ title: 'Case created', date: `${record.date} · ${new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' }).format(new Date())} · ${operator}`, detail: 'Discrepancy recorded and quantities verified.' }] };
     setCases((current) => [item, ...current]);
     setFlash(`${id} added to your discrepancies`);
     setLocation(`/cases/${id}`);
   };
   const saveSettings = (next: Settings) => { setSettings(next); setFlash('Workspace defaults saved'); };
 
-  const isAuth = ['/login', '/signup'].includes(location);
-  if (isAuth) return <><Switch>
-    <Route path="/login"><AuthPage signup={false} settings={settings} onDone={() => setLocation('/')} onFlash={setFlash} /></Route>
-    <Route path="/signup"><AuthPage signup settings={settings} onDone={() => setLocation('/')} onFlash={setFlash} /></Route>
-  </Switch>{flash && <div className="flash" role="status">{flash}</div>}</>;
-
   return <div className="app-shell">
-    <Shell location={location} settings={settings}>
+    <Shell location={location} settings={settings} user={user}>
       <Switch>
-        <Route path="/"><Welcome settings={settings} /></Route>
+        <Route path="/"><Redirect to="/overview" /></Route>
         <Route path="/overview"><Dashboard cases={cases} settings={settings} /></Route>
         <Route path="/discrepancies"><Discrepancies cases={cases} settings={settings} /></Route>
         <Route path="/cases/new"><NewCase settings={settings} onCreate={createCase} /></Route>
         <Route path="/cases/:id/message"><MessagePage cases={cases} settings={settings} onFlash={setFlash} /></Route>
         <Route path="/cases/:id"><CaseDetail cases={cases} settings={settings} onUpdate={updateCase} /></Route>
         <Route path="/settings"><SettingsPage settings={settings} onSave={saveSettings} /></Route>
+        <Route path="/profile"><ProfilePage user={user} onFlash={setFlash} onSave={(businessName, email) => setSettings((current) => ({ ...current, businessName, email }))} /></Route>
         <Route><NotFound /></Route>
       </Switch>
     </Shell>
@@ -111,49 +177,50 @@ function App() {
   </div>;
 }
 
-function Shell({ children, location, settings }: { children: ReactNode; location: string; settings: Settings }) {
+function Shell({ children, location, settings, user }: { children: ReactNode; location: string; settings: Settings; user: NonNullable<ReturnType<typeof useUser>['user']> }) {
   const nav = [
     { href: '/overview', label: 'Overview', icon: LayoutDashboard },
     { href: '/discrepancies', label: 'Discrepancies', icon: ClipboardList },
     { href: '/settings', label: 'Settings', icon: SettingsIcon },
+    { href: '/profile', label: 'Profile', icon: UserRound },
   ];
   const active = (href: string) => href === '/overview' ? ['/','/overview'].includes(location) : location === href || location.startsWith(`${href}/`);
+  const { signOut } = useClerk();
+  const avatarText = (user.fullName || user.primaryEmailAddress?.emailAddress || 'SP').split(/\s+/).slice(0, 2).map((s) => s[0]).join('').toUpperCase();
   return <>
     <header className="topbar">
-      <Link href="/" className="brand" data-testid="link-brand"><img src="/assets/supplyproof-mark.png" alt="Supply Proof mark" /><span>Supply Proof<small>{settings.businessName}</small></span></Link>
-      <div className="top-actions"><div className="avatar" aria-label="Mika Santos">MS</div><Link href="/settings" className="icon-btn" aria-label="Open settings" data-testid="link-settings-header"><SettingsIcon size={18} /></Link></div>
+      <Link href="/overview" className="brand" data-testid="link-brand"><img src="/assets/supplyproof-mark.png" alt="Supply Proof mark" /><span>Supply Proof<small>{settings.businessName || 'Delivery, documented.'}</small></span></Link>
+      <div className="top-actions"><Link href="/profile" className="account-link" aria-label="Open profile" data-testid="link-profile-header"><span className="avatar">{avatarText}</span><span className="account-name">{user.fullName || user.primaryEmailAddress?.emailAddress}</span></Link><button className="icon-btn" onClick={() => signOut({ redirectUrl: basePath || '/' })} aria-label="Sign out" data-testid="button-sign-out"><LogOut size={17} /></button></div>
     </header>
     <div className="layout">
       <aside className="sidebar">
         <div><div className="workspace-label">Workspace</div><nav className="nav-list" aria-label="Main navigation">{nav.map(({ href, label, icon: Icon }) => <Link href={href} key={href} className={`nav-link${active(href) ? ' active' : ''}`} data-testid={`nav-${label.toLowerCase()}`}><Icon size={17} strokeWidth={1.8} />{label}</Link>)}</nav></div>
         <Link href="/cases/new" className="btn btn-primary full-width" data-testid="button-new-discrepancy"><Plus size={16} />New discrepancy</Link>
         <div className="sidebar-note"><strong><ShieldCheck size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Proof that travels with the case</strong>Keep a clear record of every delivery issue, from receiving count to supplier resolution.</div>
-        <div style={{ color: '#889691', fontSize: 10, padding: '0 10px' }}>SAMPLE WORKSPACE · PHILIPPINES</div>
+         <div style={{ color: '#889691', fontSize: 10, padding: '0 10px' }}>LOCAL PROTOTYPE DATA</div>
       </aside>
       <main className="main"><div className="content">{children}</div></main>
     </div>
-    <nav className="bottom-nav" aria-label="Mobile navigation">{nav.map(({ href, label, icon: Icon }) => <Link href={href} key={href} className={active(href) ? 'active' : ''} data-testid={`mobile-nav-${label.toLowerCase()}`}><Icon size={18} />{label}</Link>)}</nav>
+     <nav className="bottom-nav" aria-label="Mobile navigation">{nav.map(({ href, label, icon: Icon }) => <Link href={href} key={href} className={active(href) ? 'active' : ''} data-testid={`mobile-nav-${label.toLowerCase()}`}><Icon size={18} /><span>{label}</span></Link>)}</nav>
   </>;
 }
 
-function Welcome({ settings }: { settings: Settings }) {
-  return <div className="welcome-page">
-    <div className="page-head"><div><div className="eyebrow">Good morning, Mika</div><h1>Welcome back</h1><p className="subtitle">Document delivery issues. Recover what’s owed.</p></div><Link href="/cases/new" className="btn btn-primary" data-testid="button-new-case-welcome"><Plus size={16} />New discrepancy</Link></div>
-    <div className="panel panel-pad" style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: 28, alignItems: 'center', padding: 30, overflow: 'hidden', background: 'linear-gradient(112deg,#fff 0%,#fff 58%,#edf7f1 100%)' }}>
-      <div><div className="eyebrow">Your receiving record, in one place</div><h2 style={{ font: '800 32px/1.16 var(--app-font-serif)', letterSpacing: '-.04em', margin: '12px 0 11px', maxWidth: 500 }}>Make every delivery count.</h2><p className="subtitle" style={{ maxWidth: 460, marginBottom: 22 }}>Capture what arrived, keep the proof together, and prepare a clear follow-up when something is off.</p><div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}><Link href="/overview" className="btn btn-primary" data-testid="button-open-overview">Open workspace <ArrowRight size={15} /></Link><Link href="/discrepancies" className="btn btn-secondary" data-testid="button-browse-cases">Browse cases</Link></div></div>
-      <div style={{ textAlign: 'center', position: 'relative' }}><img src="/assets/supplyproof-welcome.png" alt="Supply Proof verified delivery box illustration" style={{ width: 'min(100%,270px)', borderRadius: 22, mixBlendMode: 'multiply' }} /></div>
-    </div>
-    <div className="stats" style={{ marginTop: 18 }}>
-      <div className="panel stat"><div className="stat-top">Open cases <ClipboardList size={16} color="#087e83" /></div><div className="stat-num">18</div><div className="stat-foot">Across all branches</div></div>
-      <div className="panel stat"><div className="stat-top">Disputed value <AlertCircle size={16} color="#b87d27" /></div><div className="stat-num">₱78,750</div><div className="stat-foot">Across 18 open cases</div></div>
-      <div className="panel stat"><div className="stat-top">Recovered this month <BadgeCheck size={16} color="#318260" /></div><div className="stat-num">₱18,750</div><div className="stat-foot">7 recorded recoveries</div></div>
-    </div>
-    <section className="panel panel-pad">
-      <div className="section-title"><div><h2>Start with a delivery</h2><p>Everything you need to document one issue clearly.</p></div><span className="status status-open">Sample workspace</span></div>
-      <div className="detail-grid" style={{ gap: 10 }}>
-        {[['01','Record the count','Compare ordered and received quantities.'],['02','Attach the proof','Keep receipts and receiving photos with the case.'],['03','Prepare a follow-up','Review a ready-to-copy message before sharing it yourself.']].map(([n,title,desc]) => <div key={n} style={{ padding: 13, background: '#f7faf7', borderRadius: 10, display: 'flex', gap: 12 }}><span className="case-id">{n}</span><div><strong style={{ display:'block', fontSize:12, marginBottom:3 }}>{title}</strong><small style={{ color:'#738581', lineHeight:1.45 }}>{desc}</small></div></div>)}
-      </div>
-    </section>
+function PublicHome() {
+  return <div className="public-home">
+    <header className="public-header"><Link href="/" className="brand" data-testid="link-public-brand"><img src="/assets/supplyproof-mark.png" alt="Supply Proof mark"/><span>Supply Proof<small>Delivery, documented.</small></span></Link><div className="public-actions"><Link href="/sign-in" className="btn btn-secondary" data-testid="link-public-sign-in">Sign in</Link><Link href="/sign-up" className="btn btn-primary" data-testid="link-public-sign-up">Create account <ArrowRight size={15}/></Link></div></header>
+    <main className="public-main">
+      <section className="public-hero">
+        <div className="hero-copy"><div className="eyebrow"><span className="eyebrow-rule"/>RECEIVING RECORDS, WITHOUT THE GUESSWORK</div><h1>Make the missing<br/><em>impossible to miss.</em></h1><p>Supply Proof keeps delivery counts, notes, and follow-up details together—so a discrepancy is clear before it leaves your receiving dock.</p><div className="hero-actions"><Link href="/sign-up" className="btn btn-primary" data-testid="button-public-start">Set up your account <ArrowRight size={16}/></Link><Link href="/sign-in" className="text-link">I already have an account</Link></div><p className="prototype-note">A local prototype. Cases and settings are stored in this browser for your account.</p></div>
+        <div className="hero-mark"><div className="hero-ring hero-ring-one"/><div className="hero-ring hero-ring-two"/><img src="/assets/supplyproof-mark.png" alt="Supply Proof verified delivery mark"/><span className="hero-stamp">RECEIVED<br/>WITH PROOF</span></div>
+      </section>
+      <section className="public-process"><div className="process-heading"><div className="eyebrow">A clearer handoff</div><h2>One record. Every next step.</h2></div><div className="process-list">
+        <div className="process-row"><span className="process-index">01</span><div><h3>Count what arrived</h3><p>Put the purchase order beside the receiving count and calculate the shortfall.</p></div><span className="process-label">RECORD</span></div>
+        <div className="process-row"><span className="process-index">02</span><div><h3>Keep the evidence close</h3><p>Note receipts and photos on the case. Prototype uploads are listed locally, not sent to a server.</p></div><span className="process-label">DOCUMENT</span></div>
+        <div className="process-row"><span className="process-index">03</span><div><h3>Follow up with context</h3><p>Track response and recovery status, then copy a concise supplier message when you are ready.</p></div><span className="process-label">RESOLVE</span></div>
+      </div></section>
+      <section className="public-footnote"><ShieldCheck size={18}/><p><strong>Your account starts clean.</strong> New accounts do not include sample cases. Add your own business details and receiving records after you sign in.</p><Link href="/sign-up" className="text-link">Create your workspace <ArrowRight size={14}/></Link></section>
+    </main>
+    <footer className="public-footer"><span>SUPPLY PROOF · LOCAL PROTOTYPE</span><span>Built for a better receiving record.</span></footer>
   </div>;
 }
 
@@ -163,9 +230,9 @@ function Dashboard({ cases, settings }: { cases: CaseRecord[]; settings: Setting
   const recovered = cases.reduce((sum, item) => sum + item.recovered, 0);
   return <><div className="page-head"><div><div className="eyebrow">23 Oct 2026 · {settings.businessName}</div><h1>Overview</h1><p className="subtitle">A clear view of what’s still waiting for a response.</p></div><Link href="/cases/new" className="btn btn-primary" data-testid="button-new-case-dashboard"><Plus size={16} />New discrepancy</Link></div>
     <div className="stats">
-      <div className="panel stat"><div className="stat-top">Open cases <ClipboardList size={16} color="#087e83" /></div><div className="stat-num" data-testid="metric-open-cases">{Math.max(18, openCount)}</div><div className="stat-foot">Across all branches</div></div>
-      <div className="panel stat"><div className="stat-top">Disputed value <AlertCircle size={16} color="#b87d27" /></div><div className="stat-num" data-testid="metric-disputed-value">{money(Math.max(78750, disputed), settings.currency)}</div><div className="stat-foot">Across open cases</div></div>
-      <div className="panel stat"><div className="stat-top">Recorded recoveries <BadgeCheck size={16} color="#318260" /></div><div className="stat-num" data-testid="metric-recoveries">{money(Math.max(18750, recovered), settings.currency)}</div><div className="stat-foot">This month · {settings.currency}</div></div>
+      <div className="panel stat"><div className="stat-top">Open cases <ClipboardList size={16} color="#087e83" /></div><div className="stat-num" data-testid="metric-open-cases">{openCount}</div><div className="stat-foot">Across your records</div></div>
+      <div className="panel stat"><div className="stat-top">Disputed value <AlertCircle size={16} color="#b87d27" /></div><div className="stat-num" data-testid="metric-disputed-value">{money(disputed, settings.currency)}</div><div className="stat-foot">Across open cases</div></div>
+      <div className="panel stat"><div className="stat-top">Recorded recoveries <BadgeCheck size={16} color="#318260" /></div><div className="stat-num" data-testid="metric-recoveries">{money(recovered, settings.currency)}</div><div className="stat-foot">Recorded in this prototype</div></div>
     </div>
     <section className="panel">
       <div className="panel-pad section-title"><div><h2>Recent discrepancies</h2><p>Latest cases across your workspace.</p></div><Link href="/discrepancies" className="btn btn-secondary btn-sm" data-testid="link-view-all-cases">View all discrepancies <ArrowRight size={14} /></Link></div>
@@ -326,7 +393,7 @@ function MessagePage({ cases, settings, onFlash }: { cases: CaseRecord[]; settin
   const shortfall = Math.max(0, item.ordered - item.received);
   const value = shortfall * item.unitCost;
   const currency = item.currency ?? 'PHP';
-  const message = `Good day, ${item.supplier.split(' ')[0]} team,\n\nWe would like to formally raise a delivery discrepancy under PO ${item.po}, received on ${item.date} at our ${item.branch}.\n\n${item.item} · ${item.unit}\nOrdered: ${item.ordered} ${item.unit}\nReceived: ${item.received} ${item.unit}\nShortfall: ${shortfall} ${item.unit}\n\nWe request a supplier credit of ${money(value,currency)} excluding VAT, or advice on when a replacement delivery can be arranged. Please quote ${item.id} in your reply.\n\n${item.notes || 'Our receiving team verified the count against the purchase order.'}\n\nThank you,\nMika Santos\nOperations Manager · ${settings.businessName}\n${settings.email}`;
+  const message = `Good day, ${item.supplier.split(' ')[0]} team,\n\nWe would like to formally raise a delivery discrepancy under PO ${item.po}, received on ${item.date} at our ${item.branch}.\n\n${item.item} · ${item.unit}\nOrdered: ${item.ordered} ${item.unit}\nReceived: ${item.received} ${item.unit}\nShortfall: ${shortfall} ${item.unit}\n\nWe request a supplier credit of ${money(value,currency)} excluding VAT, or advice on when a replacement delivery can be arranged. Please quote ${item.id} in your reply.\n\n${item.notes || 'Our receiving team verified the count against the purchase order.'}\n\nThank you,\n${settings.businessName ? `${settings.businessName} receiving team` : 'Receiving team'}${settings.email ? `\n${settings.email}` : ''}`;
   const copy = async () => {
     try { await navigator.clipboard.writeText(message); onFlash('Message copied. Nothing has been sent.'); }
     catch { const node = document.querySelector<HTMLTextAreaElement>('#copy-fallback'); if(node){node.select();document.execCommand('copy');onFlash('Message copied. Nothing has been sent.');} }
@@ -355,10 +422,10 @@ function SettingsPage({ settings, onSave }: { settings: Settings; onSave: (setti
   const submit = (event: FormEvent) => { event.preventDefault(); onSave(draft); };
   return <><div className="page-head"><div><div className="eyebrow">Workspace defaults</div><h1>Settings</h1><p className="subtitle">A few details to keep new cases consistent.</p></div></div>
     <form onSubmit={submit} className="settings-stack" data-testid="form-settings">
-      <div className="workspace-summary"><div className="section-title" style={{ margin:0 }}><h2>Workspace & contact</h2><BriefcaseBusiness size={17} color="#087e83"/></div><div className="summary-line"><i/>Sample workspace · 3 branches · Philippines</div><div className="summary-line"><i/>Mika Santos · Operations manager</div></div>
+      <div className="workspace-summary"><div className="section-title" style={{ margin:0 }}><h2>Workspace & contact</h2><BriefcaseBusiness size={17} color="#087e83"/></div><div className="summary-line"><i/>{draft.businessName || 'Add a business name in your profile'}</div><div className="summary-line"><i/>{draft.email || 'No contact email saved'}</div><p className="input-help" style={{ margin:0 }}>Local prototype settings for the signed-in account.</p></div>
       <section className="panel form-section" style={{ margin:0 }}><h2>Business details</h2><div className="form-grid">
         <Field label="Business name"><input className="field" value={draft.businessName} onChange={(e)=>setDraft({...draft,businessName:e.target.value})} data-testid="input-business-name"/></Field>
-        <Field label="Default branch"><select className="select" value={draft.branch} onChange={(e)=>setDraft({...draft,branch:e.target.value})} data-testid="select-default-branch">{['Manila Branch','Quezon City Branch','Cebu Branch'].map((branch)=><option key={branch}>{branch}</option>)}</select></Field>
+         <Field label="Default branch"><input className="field" value={draft.branch} placeholder="e.g. Central branch" onChange={(e)=>setDraft({...draft,branch:e.target.value})} data-testid="input-default-branch"/></Field>
         <Field label="Contact email"><input className="field" type="email" value={draft.email} onChange={(e)=>setDraft({...draft,email:e.target.value})} data-testid="input-contact-email"/></Field>
         <Field label="Preferred currency"><select className="select" value={draft.currency} onChange={(e)=>setDraft({...draft,currency:e.target.value})} data-testid="select-currency"><option value="PHP">PHP — Philippine peso (₱)</option><option value="USD">USD — US dollar ($)</option><option value="SGD">SGD — Singapore dollar (S$)</option></select></Field>
       </div><div className="notice" style={{ marginTop:14 }}><strong>Defaults explanation</strong><br/>These defaults prefill new cases. Existing records keep their original branch, currency, and contact details.</div></section>
@@ -375,29 +442,71 @@ function SettingsPage({ settings, onSave }: { settings: Settings; onSave: (setti
   </>;
 }
 
-function AuthPage({ signup, settings, onDone, onFlash }: { signup: boolean; settings: Settings; onDone: () => void; onFlash: (message: string) => void }) {
-  const [email, setEmail] = useState(settings.email);
-  const [password, setPassword] = useState('');
-  const [business, setBusiness] = useState(settings.businessName);
-  const [industry, setIndustry] = useState('Restaurant group');
-  const submit = (event: FormEvent) => { event.preventDefault(); onFlash('Prototype workspace opened. This is not a real sign-in.'); onDone(); };
+function AuthPage({ signup }: { signup: boolean }) {
   return <div className="auth-page">
-    <div className="auth-art"><img src="/assets/supplyproof-welcome.png" alt="Supply Proof delivery verification illustration"/><div className="auth-caption"><h2>Good deliveries should be easy to prove.</h2><p>Keep receiving notes, evidence, and supplier follow-ups together in one clear workspace.</p></div></div>
+    <div className="auth-story"><Link href="/" className="brand auth-brand" data-testid="link-auth-brand"><img src="/assets/supplyproof-mark.png" alt="Supply Proof mark"/><span>Supply Proof<small>Delivery, documented.</small></span></Link><div className="auth-story-copy"><div className="eyebrow">KEEP THE RECORD STRAIGHT</div><h1>Every delivery<br/>has a paper trail.</h1><p>One place for counts, evidence, and the next step in a supplier conversation.</p></div><div className="auth-art-mark"><img src="/assets/supplyproof-mark.png" alt="Supply Proof verified delivery mark"/></div><span className="auth-caption-foot">LOCAL PROTOTYPE · YOUR ACCOUNT, YOUR RECORDS</span></div>
     <div className="auth-form-side"><div className="auth-card">
-      <Link href="/" className="brand auth-brand" data-testid="link-auth-brand"><img src="/assets/supplyproof-mark.png" alt=""/><span>Supply Proof<small>Delivery, documented.</small></span></Link>
-      <div className="eyebrow">Sample workspace · Philippines</div><h1>{signup ? 'Set up your workspace' : 'Welcome back'}</h1><p className="subtitle">{signup ? 'A few details to make your receiving records yours.' : 'Sign in to continue to your delivery records.'}</p>
-      <form className="auth-fields" onSubmit={submit} data-testid={signup?'form-signup':'form-login'}>
-        {signup&&<><Field label="Business name"><input className="field" value={business} onChange={(e)=>setBusiness(e.target.value)} required data-testid="input-signup-business"/></Field><Field label="Industry"><select className="select" value={industry} onChange={(e)=>setIndustry(e.target.value)} data-testid="select-signup-industry"><option>Restaurant group</option><option>Regional retail</option><option>Food service</option><option>Other</option></select></Field></>}
-        <Field label="Email"><input className="field" type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required data-testid="input-auth-email"/></Field>
-        {signup&&<Field label="Contact name"><input className="field" placeholder="Your name" data-testid="input-contact-name"/></Field>}
-        <Field label="Password"><input className="field" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required minLength={4} data-testid="input-auth-password"/></Field>
-        <button className="btn btn-primary full-width" type="submit" data-testid="button-auth-submit">{signup?'Create sample workspace':'Sign in'} <ArrowRight size={15}/></button>
-      </form>
-      <div className="auth-bottom">{signup?'Already have a workspace?':'Need access? Ask your operations team for a workspace invite.'} {!signup&&<><br/><Link href="/signup" className="auth-link" data-testid="link-to-signup">Create a sample workspace</Link></>}</div>
-      {signup&&<div className="auth-bottom"><Link href="/login" className="auth-link" data-testid="link-to-login">Back to sign in</Link></div>}
-      <p className="input-help" style={{ textAlign:'center',marginTop:24 }}>Prototype access only — no account is created and no credentials are saved.</p>
+      <div className="eyebrow">{signup ? 'New workspace' : 'Account access'}</div><h1>{signup ? 'Create your account' : 'Welcome back'}</h1><p className="subtitle">{signup ? 'Use Clerk to create a secure account. Your records start empty.' : 'Sign in securely to continue to your own records.'}</p>
+      <div className="clerk-component">{signup
+        ? <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} fallbackRedirectUrl={`${basePath}/profile`} />
+        : <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />}
+      </div>
+      {!signup && <div className="demo-guidance"><strong>Demo account guidance</strong><span>Email: <code>mika@kapenorte.example</code></span><span>Password: <code>supplyproof24</code></span><small>These are supplied demo details only. Clerk must accept the credentials in this environment; no access is simulated.</small></div>}
+      <p className="auth-privacy">Supply Proof uses Clerk for authentication. Cases and workspace settings are a local browser prototype scoped to your Clerk account.</p>
     </div></div>
   </div>;
+}
+
+function ProfilePage({ user, onFlash, onSave }: { user: NonNullable<ReturnType<typeof useUser>['user']>; onFlash: (message: string) => void; onSave: (businessName: string, email: string) => void }) {
+  const metadata = user.unsafeMetadata as Record<string, unknown>;
+  const [name, setName] = useState(String(metadata.profileName ?? user.fullName ?? ''));
+  const [contactEmail, setContactEmail] = useState(String(metadata.contactEmail ?? user.primaryEmailAddress?.emailAddress ?? ''));
+  const [phone, setPhone] = useState(String(metadata.contactPhone ?? ''));
+  const [business, setBusiness] = useState(String(metadata.businessName ?? ''));
+  const [industry, setIndustry] = useState(String(metadata.industry ?? ''));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const initials = (name || user.primaryEmailAddress?.emailAddress || 'SP').split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true); setError('');
+    const nameParts = name.trim().split(/\s+/).filter(Boolean);
+    try {
+      await user.update({
+        firstName: nameParts[0] ?? '',
+        lastName: nameParts.slice(1).join(' '),
+        unsafeMetadata: {
+          ...user.unsafeMetadata,
+          profileName: name,
+          contactEmail,
+          contactPhone: phone,
+          businessName: business,
+          industry,
+        },
+      });
+      onSave(business, contactEmail);
+      onFlash('Profile details saved to your Clerk account.');
+    } catch {
+      setError('We could not save these details to Clerk. Please try again.');
+    } finally { setSaving(false); }
+  };
+  return <><div className="page-head"><div><div className="eyebrow">Your account</div><h1>Profile</h1><p className="subtitle">Your current Clerk identity and the business details attached to it.</p></div></div>
+    <div className="profile-layout">
+      <section className="profile-card panel panel-pad"><div className="profile-avatar">{initials || <UserRound size={24}/>}</div><div className="profile-card-name">{name || 'Add your name'}</div><div className="profile-card-email">{user.primaryEmailAddress?.emailAddress || 'No email on this identity'}</div><span className="identity-badge"><ShieldCheck size={14}/>Verified by Clerk</span><div className="profile-mini"><span>Account ID</span><code>{user.id}</code></div><p className="input-help">Identity details come from your signed-in Clerk account.</p></section>
+      <form onSubmit={submit} className="panel form-section profile-form" data-testid="form-profile">
+        <div><div className="eyebrow">PROFILE DETAILS</div><h2>Keep your details current</h2><p className="subtitle">Saved directly to this signed-in account's Clerk profile metadata.</p></div>
+        <div className="form-grid">
+          <Field label="Your name"><input className="field" value={name} onChange={(event)=>setName(event.target.value)} autoComplete="name" data-testid="input-profile-name"/></Field>
+          <Field label="Business name"><input className="field" value={business} onChange={(event)=>setBusiness(event.target.value)} autoComplete="organization" data-testid="input-profile-business"/></Field>
+          <Field label="Contact email"><input className="field" type="email" value={contactEmail} onChange={(event)=>setContactEmail(event.target.value)} autoComplete="email" data-testid="input-profile-email"/></Field>
+          <Field label="Contact phone"><input className="field" type="tel" value={phone} onChange={(event)=>setPhone(event.target.value)} autoComplete="tel" data-testid="input-profile-phone"/></Field>
+          <Field label="Industry" full><input className="field" value={industry} onChange={(event)=>setIndustry(event.target.value)} placeholder="Enter your industry" data-testid="input-profile-industry"/></Field>
+        </div>
+        {error && <div className="notice" role="alert">{error}</div>}
+        <div className="profile-form-bottom"><p className="input-help">Blank fields stay blank until you add your own details.</p><button className="btn btn-primary" type="submit" disabled={saving} data-testid="button-save-profile"><Check size={15}/>{saving ? 'Saving…' : 'Save profile'}</button></div>
+      </form>
+    </div>
+  </>;
 }
 
 function MissingCase() { return <div className="panel panel-pad empty-state"><AlertCircle size={28}/><strong>Case not found</strong><p>This case may have been removed from the local prototype.</p><Link href="/discrepancies" className="btn btn-primary btn-sm">Back to discrepancies</Link></div>; }
